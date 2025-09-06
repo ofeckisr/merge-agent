@@ -17,13 +17,13 @@ public class FlightRepository : IFlightRepository
 
     public async Task AddAsync(Flight entity) => await _context.Flights.AddAsync(entity);
 
-    public async Task<bool> UpdateAsync(string flightNumber, Action<Flight> patch)
+    public async Task UpdateAsync(Flight entity)
     {
-        var existingFlight = await _context.Flights.FirstOrDefaultAsync(f => f.FlightNumber.ToLower() == flightNumber.ToLower());
-        if (existingFlight == null)
-            return false;
-        patch(existingFlight);
-        return true;
+        var existingFlight = await _context.Flights.FirstOrDefaultAsync(f => f.FlightNumber == entity.FlightNumber);
+        if (existingFlight != null)
+        {
+            _context.Entry(existingFlight).CurrentValues.SetValues(entity);
+        }
     }
 
     public void Remove(Flight entity) => _context.Flights.Remove(entity);
