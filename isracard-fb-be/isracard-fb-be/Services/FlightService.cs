@@ -70,18 +70,34 @@ public class FlightService : IFlightService
             if (!IsValidFlightDto(flightDto))
                 return;
 
+            var existingFlight = await _repo.GetByFlightNumberAsync(flightDto.FlightNumber);
+            if (existingFlight == null)
+            {
+                _logger.LogWarning("Flight with number {FlightNumber} not found.", flightDto.FlightNumber);
+                return;
+            }
+
             var flight = FlightMappingService.MapToEntity(flightDto);
+            flight.Status = CalculateStatus(flight.DepartureTime); // Auto-calculate status based on new departure time
 
             await _repo.UpdateAsync(flight);
             await _repo.SaveChangesAsync();
+            
             _logger.LogInformation("Flight with number {FlightNumber} updated successfully.", flightDto.FlightNumber);
+            
+            // Notify clients about the update using the correct method
+            var updatedFlightDto = FlightMappingService.MapToDto(flight);
+            await _flightStatusService.NotifyFlightStatusUpdated(new[] { new FlightStatusUpdateDto 
+            { 
+                FlightNumber = flight.FlightNumber,
+                Status = flight.Status
+            }});
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            _logger.LogError("Error updating flight with number {FlightNumber}.", flightDto.FlightNumber);
-            return;
+            _logger.LogError(ex, "Error updating flight with number {FlightNumber}.", flightDto.FlightNumber);
+            throw; // Let the controller handle the exception
         }
-        
     }
 
     public async Task<bool> DeleteFlightAsync(string flightNumber)
